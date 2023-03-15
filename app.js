@@ -15,7 +15,7 @@ const initializeDBAndServer = async () => {
       filename: dbPath,
       driver: sqlite3.Database,
     });
-    app.listen(3002, () => {
+    app.listen(3005, () => {
       console.log("Server Running ");
     });
   } catch (e) {
@@ -27,11 +27,16 @@ initializeDBAndServer();
 
 app.post("/register", async (request, response) => {
   const { username, name, password, gender, location } = request.body;
-  const hashedPassword = await bcrypt.hash(request.body.password, 10);
+  let lengthofPass = password.length;
+  const hashedPassword = await bcrypt.hash(password, 10);
   const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`;
   const dbUser = await db.get(selectUserQuery);
-  if (dbUser === undefined) {
-    const createUserQuery = `
+  if (lengthofPass < 5) {
+    response.status(400);
+    response.send("Password is too short");
+  } else {
+    if (dbUser === undefined) {
+      const createUserQuery = `
       INSERT INTO 
         user (username, name, password, gender, location) 
       VALUES 
@@ -42,12 +47,13 @@ app.post("/register", async (request, response) => {
           '${gender}',
           '${location}'
         )`;
-    const dbResponse = await db.run(createUserQuery);
-    const newUserId = dbResponse.lastID;
-    response.send("User created successfully");
-  } else {
-    response.status = 400;
-    response.send("User already exists");
+      const dbResponse = await db.run(createUserQuery);
+      const newUserId = dbResponse.lastID;
+      response.send("User created successfully");
+    } else {
+      response.status(400);
+      response.send("User already exists");
+    }
   }
 });
 
@@ -56,16 +62,19 @@ app.post("/login", async (request, response) => {
   const { username, password } = request.body;
   const selectUserQuery = `SELECT * FROM user WHERE username = '${username}'`;
   const dbUser = await db.get(selectUserQuery);
+
   if (dbUser === undefined) {
     response.status(400);
-    response.send("Invalid User");
+    response.send("Invalid user");
   } else {
     const isPasswordMatched = await bcrypt.compare(password, dbUser.password);
+    console.log(isPasswordMatched);
+    console.log(dbUser.password);
     if (isPasswordMatched === true) {
-      response.send("Login Success!");
+      response.send("Login success!");
     } else {
       response.status(400);
-      response.send("Invalid Password");
+      response.send("Invalid password");
     }
   }
 });
